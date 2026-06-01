@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KCPH Blood Bank</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#c0392b;--red-light:#e74c3c;--red-pale:#fdecea;--red-dark:#922b21;
+  --amber:#d68910;--amber-pale:#fef9e7;
+  --green:#1e8449;--green-pale:#eafaf1;
+  --blue:#1a5276;--blue-pale:#eaf0f6;
+  --ink:#1c1c1e;--muted:#6b7280;--border:#e5e7eb;
+  --bg:#f8f8f6;--white:#fff;--card:#fff;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-height:100vh}
+/* HEADER */
+.header{background:var(--red-dark);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.hbrand{display:flex;align-items:center;gap:12px}
+.hbrand h1{font-size:15px;font-weight:600;letter-spacing:.4px}
+.hbrand p{font-size:11px;opacity:.75}
+.hright{font-family:var(--mono);font-size:12px;opacity:.85;text-align:right}
+#live-clock{font-size:14px;font-weight:600}
+/* SYNC BAR */
+.sync-bar{background:var(--white);border-bottom:1px solid var(--border);padding:6px 24px;display:flex;align-items:center;gap:10px;font-size:12px;flex-wrap:wrap}
+.sdot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .3s}
+.sdot.online{background:var(--green)}.sdot.syncing{background:var(--amber);animation:pulse .8s infinite}.sdot.error{background:var(--red)}
+#sync-label{color:var(--muted)}.sync-acts{margin-left:auto;display:flex;gap:6px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* TABS */
+.nav-tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:0 16px}
+.nav-tab{padding:13px 18px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;color:var(--muted);transition:all .15s;background:none;border-top:none;border-left:none;border-right:none}
+.nav-tab:hover{color:var(--red)}.nav-tab.active{color:var(--red);border-bottom-color:var(--red)}
+/* LAYOUT */
+.main{max-width:1240px;margin:0 auto;padding:22px 16px}
+.panel{display:none}.panel.active{display:block}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:720px){.two-col{grid-template-columns:1fr}}
+/* SETUP BANNER */
+.setup-banner{background:var(--blue-pale);border:1px solid var(--blue);border-radius:10px;padding:16px 20px;margin-bottom:20px;display:none}
+.setup-banner.visible{display:block}
+.setup-banner h3{font-size:14px;font-weight:600;color:var(--blue);margin-bottom:8px}
+.setup-banner p{font-size:12px;line-height:1.7;margin-bottom:10px}
+.setup-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.setup-row input{flex:1;min-width:280px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:12px}
+.setup-row input:focus{outline:none;border-color:var(--blue)}
+/* STAT CARDS */
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:22px}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.sc .lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.sc .val{font-family:var(--mono);font-size:26px;font-weight:700;margin:4px 0 2px}
+.sc .sub{font-size:11px;color:var(--muted)}
+.sc.danger{border-color:var(--red);background:var(--red-pale)}.sc.danger .val{color:var(--red)}
+.sc.warn{border-color:var(--amber);background:var(--amber-pale)}.sc.warn .val{color:var(--amber)}
+.sc.ok{border-color:var(--green);background:var(--green-pale)}.sc.ok .val{color:var(--green)}
+.sc.info{border-color:var(--blue);background:var(--blue-pale)}.sc.info .val{color:var(--blue)}
+/* BLOOD CARDS */
+.sec-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:12px}
+.stock-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+.blood-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.bc-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--red-dark);color:#fff}
+.bt{font-family:var(--mono);font-size:20px;font-weight:700}
+.btotal{font-family:var(--mono);font-size:13px}
+.bc-body{padding:10px 14px}
+.comp-row{display:flex;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;gap:6px}
+.comp-row:last-child{border-bottom:none}
+.cn{font-weight:500;flex:1}.cc{font-family:var(--mono);font-weight:700;min-width:24px;text-align:right}
+.bar-w{flex:1;background:var(--border);border-radius:4px;height:5px;overflow:hidden}
+.bar{height:5px;border-radius:4px;background:var(--green);transition:width .4s}
+.bar.warn{background:var(--amber)}.bar.danger{background:var(--red)}
+/* ALERTS */
+.alert-list{display:flex;flex-direction:column;gap:8px}
+.alert-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 13px;font-size:13px}
+.alert-item.critical{border-color:var(--red);background:var(--red-pale)}
+.alert-item.warning{border-color:var(--amber);background:var(--amber-pale)}
+.adot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.adot.critical{background:var(--red)}.adot.warning{background:var(--amber)}
+.atext{flex:1}.atext strong{color:var(--red)}
+.adays{font-family:var(--mono);font-size:12px;color:var(--muted)}
+/* TABLES */
+.ftable{width:100%;border-collapse:collapse;font-size:13px}
+.ftable th{background:var(--ink);color:#fff;padding:8px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.ftable td{padding:8px 12px;border-bottom:1px solid var(--border)}
+.ftable tr:hover td{background:#f9f9f7}
+.htable{width:100%;border-collapse:collapse;font-size:13px}
+.htable th{background:#f3f4f6;padding:8px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:1px solid var(--border)}
+.htable td{padding:8px 12px;border-bottom:1px solid var(--border)}
+.htable tr:hover td{background:#fafafa}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--mono)}
+.badge.expired,.badge.critical{background:#fdecea;color:var(--red)}
+.badge.warn{background:#fef9e7;color:var(--amber)}
+.badge.ok{background:#eafaf1;color:var(--green)}
+.badge.issued-b{background:#eaf0f6;color:var(--blue)}
+/* FORMS */
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:18px}
+.form-title{font-size:15px;font-weight:600;margin-bottom:14px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px}
+label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+input,select{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:6px;font-family:var(--sans);font-size:13px;background:var(--bg);color:var(--ink);transition:border .15s}
+input:focus,select:focus{outline:none;border-color:var(--red-light)}
+.btn{padding:9px 18px;border:none;border-radius:6px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red-dark)}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#166039}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--ink)}.btn-ghost:hover{border-color:var(--red);color:var(--red)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#154360}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.form-actions{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+/* FIFO PREVIEW */
+.fifo-box{background:linear-gradient(135deg,#922b21,#c0392b);color:#fff;border-radius:10px;padding:18px 22px;margin-bottom:16px}
+.fifo-box h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;opacity:.8;margin-bottom:10px}
+.fifo-result{font-family:var(--mono);font-size:14px;line-height:1.9}
+/* ISSUED TRACKER CARDS */
+.irc{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.irc-head{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fafafa;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.irc-bt{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--red-dark);min-width:34px}
+.irc-id{font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:4px;border:1px solid var(--border)}
+.irc-comp{font-size:12px;font-weight:600;color:var(--blue)}
+.irc-ward{font-size:12px;background:var(--green-pale);color:var(--green);padding:2px 8px;border-radius:4px;font-weight:600}
+.irc-time{margin-left:auto;font-size:11px;color:var(--muted);font-family:var(--mono)}
+.irc-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr))}
+.irc-f{padding:8px 14px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.irc-fl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:2px}
+.irc-fv{font-size:13px;font-weight:500}
+.irc-fv.mono{font-family:var(--mono)}
+/* FILTER BAR */
+.filter-bar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+/* REPORT */
+.report-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:14px}
+.rtitle{font-size:15px;font-weight:600;margin-bottom:12px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.kpi-box{text-align:center;padding:12px;background:var(--bg);border-radius:8px}
+.kval{font-family:var(--mono);font-size:22px;font-weight:700}
+.klbl{font-size:11px;color:var(--muted);margin-top:2px}
+/* LOADING */
+.loader{position:fixed;inset:0;background:rgba(255,255,255,.78);z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.loader.on{display:flex}
+.spinner{width:38px;height:38px;border:4px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lmsg{font-size:14px;color:var(--muted)}
+/* TOAST */
+.toasts{position:fixed;bottom:22px;right:22px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--ink);color:#fff;padding:9px 15px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.3);animation:tin .2s ease;max-width:300px}
+.toast.ok{background:var(--green)}.toast.err{background:var(--red)}.toast.info{background:var(--blue)}
+@keyframes tin{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+.empty{text-align:center;padding:30px 16px;color:var(--muted);font-size:13px}
+.shelf-note{margin-top:9px;font-size:12px;color:var(--blue);display:none}
+.rp-btn{padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:none;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;color:var(--muted);transition:all .15s}
+.rp-btn:hover{border-color:var(--red);color:var(--red)}
+.rp-btn.active{background:var(--red);color:#fff;border-color:var(--red)}
+@media print{.nav-tabs,.header,.sync-bar,.filter-bar,.btn,.setup-banner,.loader{display:none!important}.panel{display:block!important}}
+</style>
+</head>
+<body>
+
+<div class="loader" id="loader"><div class="spinner"></div><div class="lmsg" id="lmsg">Loading...</div></div>
+
+<div class="header">
+  <div class="hbrand">
+    <div style="font-size:22px">&#x1FA78;</div>
+    <div><h1>KCPH Blood Bank &mdash; Stock Management</h1><p>Kampong Chhnang Provincial Hospital &middot; FIFO System</p></div>
+  </div>
+  <div class="hright"><div id="live-clock"></div><div id="live-date"></div></div>
+</div>
+
+<div class="sync-bar">
+  <div class="sdot" id="sdot"></div>
+  <span id="sync-label">Not connected</span>
+  <div class="sync-acts">
+    <button class="btn btn-ghost btn-sm" onclick="manualSync()">&#x1F504; Sync</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleSetup()">&#x2699; Setup</button>
+  </div>
+</div>
+
+<div class="nav-tabs">
+  <button class="nav-tab active"  onclick="switchTab('dashboard')">&#x1F4CA; Dashboard</button>
+  <button class="nav-tab" onclick="switchTab('receive')">&#x1F4E5; Receive</button>
+  <button class="nav-tab" onclick="switchTab('issue')">&#x1F4E4; Issue (FIFO)</button>
+  <button class="nav-tab" onclick="switchTab('issued')">&#x1F9FE; Issued Tracker</button>
+  <button class="nav-tab" onclick="switchTab('discard')">&#x1F5D1; Discard</button>
+  <button class="nav-tab" onclick="switchTab('fifo')">&#x1F522; FIFO Queue</button>
+  <button class="nav-tab" onclick="switchTab('history')">&#x1F4CB; Log</button>
+  <button class="nav-tab" onclick="switchTab('report')">&#x1F4C8; Reports</button>
+</div>
+
+<div class="main">
+
+<!-- SETUP BANNER -->
+<div class="setup-banner" id="setup-banner">
+  <h3>&#x2699;&#xFE0F; Google Sheets Backend Setup</h3>
+  <p>
+    <strong>Step 1:</strong> Open Google Spreadsheet &rarr; Extensions &rarr; Apps Script.<br>
+    <strong>Step 2:</strong> Paste <code>blood-bank-gas.js</code> contents and save.<br>
+    <strong>Step 3:</strong> Deploy &rarr; New Deployment &rarr; Web App &rarr; Execute as: Me &rarr; Anyone. Copy URL.<br>
+    <strong>Step 4:</strong> Paste below and click Connect. (Use Chrome &mdash; not Safari.)
+  </p>
+  <div class="setup-row">
+    <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/YOUR_ID/exec">
+    <button class="btn btn-blue" onclick="connectGAS()">&#x1F517; Connect</button>
+    <button class="btn btn-ghost" onclick="disconnectGAS()">Disconnect</button>
+  </div>
+  <div id="setup-msg" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="panel-dashboard" class="panel active">
+  <div class="stat-row" id="stat-row"></div>
+  <div class="two-col">
+    <div><div class="sec-title">&#x1F9F2; Stock by Blood Type</div><div class="stock-grid" id="stock-grid"></div></div>
+    <div><div class="sec-title">&#x26A0;&#xFE0F; Expiry Alerts (Next 7 Days)</div><div id="alert-list" class="alert-list"></div></div>
+  </div>
+</div>
+
+<!-- RECEIVE -->
+<div id="panel-receive" class="panel">
+  <div class="form-card">
+    <div class="form-title">&#x1F4E5; Receive New Blood Unit</div>
+    <div class="form-grid">
+      <div><label>Blood Bag Number (blank = auto)</label><input type="text" id="in-uid" placeholder="e.g. BB-2025-0001"></div>
+      <div><label>Blood Type *</label>
+        <select id="in-bt">
+          <option value="">-- Select --</option>
+          <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+          <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+        </select>
+      </div>
+      <div><label>Type of Donation *</label>
+        <select id="in-comp">
+          <option value="">-- Select --</option>
+          <option>SD (Spontaneous Donation)</option>
+          <option>ED (External Donation)</option>
+          <option>RD (Replacement Donation)</option>
+        </select>
+      </div>
+      <div><label>Type of Blood Bag *</label>
+        <select id="in-bagtype">
+          <option value="">-- Select --</option>
+          <option>Single</option>
+          <option>Double</option>
+          <option>Triple</option>
+        </select>
+      </div>
+      <div><label>Volume (mL)</label><input type="number" id="in-vol" placeholder="e.g. 450" min="1"></div>
+      <div><label>Collection Date *</label><input type="date" id="in-coll"></div>
+      <div><label>Expiry Date (auto-fill)</label><input type="date" id="in-exp"></div>
+      <div><label>Donor Source</label>
+        <select id="in-src">
+          <option>Voluntary / Walk-in</option>
+          <option>Family / Replacement Donor</option>
+          <option>Provincial Blood Center</option>
+          <option>NBTC Transfer</option>
+        </select>
+      </div>
+      <div><label>Storage Location</label>
+        <select id="in-loc">
+          <option value="">-- Select --</option>
+          <option>KG.CHH.E.167</option>
+          <option>KG.CHH.E.168</option>
+        </select>
+      </div>
+    </div>
+    <div class="shelf-note" id="shelf-note"></div>
+    <div class="form-actions">
+      <button class="btn btn-red" onclick="doReceive()">&#x2705; Record Receipt</button>
+      <button class="btn btn-ghost" onclick="clearReceive()">Clear</button>
+    </div>
+  </div>
+  <div class="sec-title">Recently Received (last 20)</div>
+  <div id="recv-table"></div>
+</div>
+
+<!-- ISSUE -->
+<div id="panel-issue" class="panel">
+  <div class="form-card">
+    <div class="form-title">&#x1F4E4; Issue Blood (FIFO &mdash; Oldest First)</div>
+    <div style="background:var(--amber-pale);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px;color:var(--ink)">
+      &#x1F4A1; <strong>FIFO Mode:</strong> Select blood type and type of donation &mdash; the system will automatically identify the oldest available blood bag. You may also type a specific Blood Bag Number to override FIFO.
+    </div>
+    <div class="form-grid">
+      <div><label>Blood Type *</label>
+        <select id="iss-bt" onchange="previewFIFO()">
+          <option value="">-- Select --</option>
+          <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+          <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+        </select>
+      </div>
+      <div><label>Type of Donation *</label>
+        <select id="iss-comp" onchange="previewFIFO()">
+          <option value="">-- Select --</option>
+          <option>SD (Spontaneous Donation)</option>
+          <option>ED (External Donation)</option>
+          <option>RD (Replacement Donation)</option>
+        </select>
+      </div>
+      <div>
+        <label>Override Blood Bag Number (optional)</label>
+        <input type="text" id="iss-uid-override" placeholder="Leave blank to use FIFO" oninput="previewFIFO()">
+      </div>
+      <div><label>Ward / Department *</label><input type="text" id="iss-ward" placeholder="e.g. ICU, Surgery, OB"></div>
+      <div><label>Patient ID / HN</label><input type="text" id="iss-patient" placeholder="Hospital number"></div>
+      <div><label>Requested By</label><input type="text" id="iss-doctor" placeholder="Doctor / Nurse name"></div>
+      <div><label>Indication / Diagnosis</label><input type="text" id="iss-ind" placeholder="e.g. PPH, Trauma, Anaemia"></div>
+    </div>
+  </div>
+  <div id="fifo-preview"></div>
+  <div class="form-actions">
+    <button class="btn btn-red" id="btn-issue" onclick="doIssue()" disabled>&#x1FA78; Confirm Issue</button>
+  </div>
+</div>
+
+<!-- ISSUED TRACKER -->
+<div id="panel-issued" class="panel">
+  <div class="filter-bar">
+    <div><label>From</label><input type="date" id="if-from" style="width:136px"></div>
+    <div><label>To</label><input type="date" id="if-to" style="width:136px"></div>
+    <div><label>Blood Type</label>
+      <select id="if-bt" style="width:82px">
+        <option value="">All</option>
+        <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+        <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+      </select>
+    </div>
+    <div><label>Type of Donation</label>
+      <select id="if-comp">
+        <option value="">All</option>
+        <option>SD (Spontaneous Donation)</option>
+        <option>ED (External Donation)</option>
+        <option>RD (Replacement Donation)</option>
+      </select>
+    </div>
+    <div><label>Ward</label><input type="text" id="if-ward" placeholder="Filter by ward" style="width:120px"></div>
+    <div style="display:flex;gap:6px;align-items:flex-end">
+      <button class="btn btn-ghost btn-sm" onclick="renderIssued()">Filter</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportIssuedXLSX()">&#x2B07; Excel</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportIssuedPDF()">&#x1F4C4; PDF</button>
+    </div>
+  </div>
+  <div id="issued-summary" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
+  <div id="issued-list"></div>
+</div>
+
+<!-- DISCARD -->
+<div id="panel-discard" class="panel">
+  <div class="form-card">
+    <div class="form-title">&#x1F5D1; Record Discard / Expiry</div>
+    <div class="form-grid">
+      <div><label>Blood Bag Number *</label><input type="text" id="dis-uid" placeholder="Enter Blood Bag Number"></div>
+      <div><label>Reason *</label>
+        <select id="dis-reason">
+          <option>Expired (past expiry date)</option>
+          <option>Positive infectious screen</option>
+          <option>Haemolysis / visual defect</option>
+          <option>Incorrect storage / cold-chain break</option>
+          <option>Leaking bag</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div><label>Notes</label><input type="text" id="dis-notes" placeholder="Optional notes"></div>
+      <div><label>Discarded By</label><input type="text" id="dis-by" placeholder="Staff name"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-red" onclick="doDiscard()">&#x1F5D1; Record Discard</button>
+    </div>
+  </div>
+  <div class="sec-title">Expiring Within 3 Days &mdash; Immediate Action Needed</div>
+  <div id="urgent-table"></div>
+</div>
+
+<!-- FIFO QUEUE -->
+<div id="panel-fifo" class="panel">
+  <div class="filter-bar">
+    <div><label>Blood Type</label>
+      <select id="fq-bt" onchange="renderFIFO()" style="width:82px">
+        <option value="">All</option>
+        <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+        <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+      </select>
+    </div>
+    <div><label>Type of Donation</label>
+      <select id="fq-comp" onchange="renderFIFO()">
+        <option value="">All</option>
+        <option>SD (Spontaneous Donation)</option>
+        <option>ED (External Donation)</option>
+        <option>RD (Replacement Donation)</option>
+      </select>
+    </div>
+    <div><label>Status</label>
+      <select id="fq-status" onchange="renderFIFO()">
+        <option value="">In Stock Only</option>
+        <option value="all">All</option>
+      </select>
+    </div>
+  </div>
+  <div id="fifo-table"></div>
+</div>
+
+<!-- TRANSACTION LOG -->
+<div id="panel-history" class="panel">
+  <div class="filter-bar">
+    <div><label>From</label><input type="date" id="hl-from" style="width:136px"></div>
+    <div><label>To</label><input type="date" id="hl-to" style="width:136px"></div>
+    <div><label>Type</label>
+      <select id="hl-type" style="width:130px">
+        <option value="">All</option>
+        <option>RECEIVED</option><option>ISSUED</option><option>DISCARDED</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;align-items:flex-end">
+      <button class="btn btn-ghost btn-sm" onclick="renderLog()">Filter</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportLogXLSX()">&#x2B07; Excel</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportLogPDF()">&#x1F4C4; PDF</button>
+    </div>
+  </div>
+  <div id="log-table"></div>
+</div>
+
+<!-- REPORTS -->
+<div id="panel-report" class="panel">
+
+  <!-- Period selector -->
+  <div class="report-card" style="padding:14px 18px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin-right:4px">Report Period:</div>
+      <button class="rp-btn active" onclick="setPeriod('daily',this)">Daily</button>
+      <button class="rp-btn" onclick="setPeriod('weekly',this)">Weekly</button>
+      <button class="rp-btn" onclick="setPeriod('monthly',this)">Monthly</button>
+      <button class="rp-btn" onclick="setPeriod('quarterly',this)">Quarterly</button>
+      <button class="rp-btn" onclick="setPeriod('yearly',this)">Yearly</button>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap">
+        <input type="date" id="rpt-from" onchange="renderReport()" style="width:136px;font-size:12px;padding:6px 10px">
+        <span style="font-size:12px;color:var(--muted)">to</span>
+        <input type="date" id="rpt-to" onchange="renderReport()" style="width:136px;font-size:12px;padding:6px 10px">
+      </div>
+    </div>
+    <div id="rpt-period-label" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="report-card">
+    <div class="rtitle">&#x1F4CA; Summary KPIs <span id="rpt-kpi-period" style="font-size:12px;font-weight:400;color:var(--muted)"></span></div>
+    <div class="kpi-row" id="kpi-row"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="exportReportXLSX()">&#x2B07; This Report &mdash; Excel</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportReportPDF()">&#x1F4C4; This Report &mdash; PDF</button>
+      <span style="border-left:1px solid var(--border);margin:0 4px"></span>
+      <button class="btn btn-ghost btn-sm" onclick="exportAllUnitsXLSX()">&#x2B07; All Units &mdash; Excel</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportAllUnitsPDF()">&#x1F4C4; All Units &mdash; PDF</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportIssuedXLSX()">&#x2B07; Issued &mdash; Excel</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportLogXLSX()">&#x2B07; Log &mdash; Excel</button>
+    </div>
+  </div>
+
+  <!-- Period table -->
+  <div class="report-card">
+    <div class="rtitle" id="rpt-table-title">Period Breakdown</div>
+    <div id="rpt-period-table"></div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="two-col">
+    <div class="report-card"><div class="rtitle">Received by Blood Type</div><div id="rpt-recv-bt"></div></div>
+    <div class="report-card"><div class="rtitle">Issued by Blood Type</div><div id="rpt-bt"></div></div>
+  </div>
+  <div class="two-col">
+    <div class="report-card"><div class="rtitle">Issued by Type of Donation</div><div id="rpt-iss-donation"></div></div>
+    <div class="report-card"><div class="rtitle">Discarded by Type of Donation</div><div id="rpt-comp"></div></div>
+  </div>
+
+</div>
+
+</div><!-- /main -->
+<div class="toasts" id="toasts"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ============================================================
+//  CONSTANTS
+// ============================================================
+var GAS_KEY = 'kcph_bb_gas_url';
+var DB_KEY  = 'kcph_bb_v3';
+var HARDCODED_GAS = 'https://script.google.com/macros/s/AKfycbxAqVa3Fe5bO2Zo7v113FuWfKEJLb4NxWwE-ymYxME-j8TaW_QpAGegU6Y5YpCQh4M3/exec';
+
+var SHELF = {
+  'SD (Spontaneous Donation)': 35,
+  'ED (External Donation)': 35,
+  'RD (Replacement Donation)': 35
+};
+var SHELF_NOTE = {
+  'SD (Spontaneous Donation)': 'Whole Blood: Store 1-6 C  |  35 days shelf life',
+  'ED (External Donation)': 'Whole Blood: Store 1-6 C  |  35 days shelf life',
+  'RD (Replacement Donation)': 'Whole Blood: Store 1-6 C  |  35 days shelf life'
+};
+var MAX_STOCK = {
+  'SD (Spontaneous Donation)': 30,
+  'ED (External Donation)': 30,
+  'RD (Replacement Donation)': 30
+};
+
+// ============================================================
+//  STATE
+// ============================================================
+var db = loadDB();
+localStorage.setItem(GAS_KEY, HARDCODED_GAS); // always use latest hardcoded URL
+var GAS_URL = HARDCODED_GAS;
+var syncing = false;
+
+function loadDB() {
+  try { return JSON.parse(localStorage.getItem(DB_KEY)) || {units:[], txns:[]}; }
+  catch(e) { return {units:[], txns:[]}; }
+}
+function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+// ============================================================
+//  CLOCK
+// ============================================================
+function tick() {
+  var n = new Date();
+  document.getElementById('live-clock').textContent = n.toLocaleTimeString('en-GB');
+  document.getElementById('live-date').textContent  = n.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+}
+setInterval(tick, 1000); tick();
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function toDay() { return new Date().toISOString().slice(0,10); }
+function addDays(s,n) { var d=new Date(s); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function daysLeft(s) { return Math.ceil((new Date(s)-new Date(toDay()))/86400000); }
+function fmt(s) { if(!s) return '-'; return new Date(s).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+function genID() { return 'BB-'+new Date().getFullYear()+'-'+String(db.units.length+1).padStart(4,'0'); }
+function shortComp(c) {
+  if (c.indexOf('SD')===0) return 'SD';
+  if (c.indexOf('ED')===0) return 'ED';
+  if (c.indexOf('RD')===0) return 'RD';
+  return c;
+}
+
+function toast(msg, type) {
+  var box = document.getElementById('toasts');
+  var el = document.createElement('div');
+  el.className = 'toast' + (type ? ' '+type : '');
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 3500);
+}
+
+// ============================================================
+//  SYNC / GAS
+// ============================================================
+function setSync(state, msg) {
+  document.getElementById('sdot').className = 'sdot '+(state||'');
+  document.getElementById('sync-label').textContent = msg;
+}
+function showLoad(msg) {
+  document.getElementById('lmsg').textContent = msg || 'Please wait...';
+  document.getElementById('loader').classList.add('on');
+}
+function hideLoad() { document.getElementById('loader').classList.remove('on'); }
+
+function toggleSetup() {
+  var b = document.getElementById('setup-banner');
+  b.classList.toggle('visible');
+  document.getElementById('gas-url').value = GAS_URL || HARDCODED_GAS;
+}
+function setupMsg(msg, type) {
+  var el = document.getElementById('setup-msg');
+  el.textContent = msg;
+  el.style.color = type==='err' ? 'var(--red)' : type==='ok' ? 'var(--green)' : 'var(--muted)';
+}
+
+async function gasCall(body, urlOver) {
+  var url = urlOver || GAS_URL;
+  if (!url) throw new Error('No GAS URL');
+  // GAS requires GET with params - POST with JSON triggers CORS preflight which GAS blocks
+  var params = new URLSearchParams();
+  Object.keys(body).forEach(function(k) {
+    var v = body[k];
+    params.append(k, typeof v === 'object' ? JSON.stringify(v) : v);
+  });
+  var r = await fetch(url + '?' + params.toString(), {
+    method: 'GET',
+    redirect: 'follow'
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+async function connectGAS() {
+  var url = document.getElementById('gas-url').value.trim();
+  if (!url) { setupMsg('Paste your GAS Web App URL first.','err'); return; }
+  setupMsg('Connecting...','');
+  try {
+    var res = await gasCall({action:'init'}, url);
+    if (res.ok) {
+      GAS_URL = url; localStorage.setItem(GAS_KEY, url);
+      setupMsg('Connected! Loading data...','ok');
+      await manualSync();
+      document.getElementById('setup-banner').classList.remove('visible');
+    } else { setupMsg('Error: '+(res.error||'Unknown'),'err'); }
+  } catch(e) { setupMsg('Failed: '+e.message,'err'); setSync('error','Connection failed'); }
+}
+function disconnectGAS() {
+  GAS_URL = ''; localStorage.removeItem(GAS_KEY);
+  setSync('','Not connected - local storage only');
+  setupMsg('Disconnected.','');
+  toast('Disconnected. Data saves locally.','info');
+}
+
+async function manualSync() {
+  if (!GAS_URL) { toast('No GAS URL configured.','info'); return; }
+  if (syncing) return; syncing=true;
+  setSync('syncing','Syncing...');
+  showLoad('Loading from Google Sheets...');
+  try {
+    var data = await gasCall({action:'loadAll'});
+    if (data.ok) {
+      db.units = data.units || [];
+      db.txns  = data.transactions || [];
+      saveDB();
+      setSync('online','Synced '+new Date().toLocaleTimeString('en-GB'));
+      toast('Synced from Google Sheets.','ok');
+      renderDash(); renderRecv(); renderFIFO(); renderLog();
+    } else throw new Error(data.error||'Unknown');
+  } catch(e) {
+    setSync('error','Sync failed - using local data');
+    toast('Sync failed: '+e.message,'err');
+  } finally { syncing=false; hideLoad(); }
+}
+
+async function pushGAS(body) {
+  if (!GAS_URL) return;
+  setSync('syncing','Saving...');
+  try {
+    var r = await gasCall(body);
+    if (r.ok) setSync('online','Saved '+new Date().toLocaleTimeString('en-GB'));
+    else throw new Error(r.error);
+  } catch(e) { setSync('error','Save failed - local only'); toast('GAS save failed: '+e.message,'err'); }
+}
+
+// ============================================================
+//  TABS
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active'); });
+  var panel = document.getElementById('panel-'+tab);
+  if (panel) panel.classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(function(t){
+    if ((t.getAttribute('onclick')||'').indexOf("'"+tab+"'") !== -1) t.classList.add('active');
+  });
+  if (tab==='dashboard') renderDash();
+  if (tab==='receive')   renderRecv();
+  if (tab==='issue')     previewFIFO();
+  if (tab==='issued')    renderIssued();
+  if (tab==='discard')   renderUrgent();
+  if (tab==='fifo')      renderFIFO();
+  if (tab==='history')   renderLog();
+  if (tab==='report')    { initReportPeriod(); renderReport(); }
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('in-coll').value = toDay();
+  document.getElementById('in-comp').addEventListener('change', autoExp);
+  document.getElementById('in-coll').addEventListener('change', autoExp);
+  if (GAS_URL) {
+    setSync('syncing','Connecting to Google Sheets...');
+    manualSync();
+  } else {
+    setSync('','Not connected - open Setup');
+    document.getElementById('setup-banner').classList.add('visible');
+  }
+  renderDash();
+});
+
+// ============================================================
+//  AUTO EXPIRY
+// ============================================================
+function autoExp() {
+  var comp = document.getElementById('in-comp').value;
+  var coll = document.getElementById('in-coll').value;
+  var note = document.getElementById('shelf-note');
+  if (comp && coll && SHELF[comp]) {
+    document.getElementById('in-exp').value = addDays(coll, SHELF[comp]);
+    note.textContent = SHELF_NOTE[comp] || '';
+    note.style.display = 'block';
+  }
+}
+
+// ============================================================
+//  RECEIVE
+// ============================================================
+async function doReceive() {
+  var uid     = document.getElementById('in-uid').value.trim() || genID();
+  var bt      = document.getElementById('in-bt').value;
+  var comp    = document.getElementById('in-comp').value;
+  var bagtype = document.getElementById('in-bagtype').value;
+  var vol     = document.getElementById('in-vol').value || '';
+  var coll    = document.getElementById('in-coll').value;
+  var exp     = document.getElementById('in-exp').value;
+  var src     = document.getElementById('in-src').value;
+  var loc     = document.getElementById('in-loc').value;
+
+  if (!bt||!comp||!bagtype||!coll||!exp) { toast('Fill all required fields (*)','err'); return; }
+  if (new Date(exp)<=new Date(coll)) { toast('Expiry must be after collection date.','err'); return; }
+  if (db.units.find(function(u){ return u.id===uid; })) { toast('Blood Bag Number already exists.','err'); return; }
+
+  var unit = {id:uid, bloodType:bt, component:comp, bagType:bagtype, volumeML:vol,
+    collectionDate:coll, expiryDate:exp, source:src, location:loc,
+    status:'IN_STOCK', receivedAt:new Date().toISOString()};
+  db.units.push(unit);
+  db.txns.push({date:toDay(), datetime:new Date().toISOString(),
+    type:'RECEIVED', unitId:uid, bloodType:bt, component:comp, notes:bagtype+' | '+src});
+  saveDB(); clearReceive(); renderRecv(); renderDash();
+  toast('Blood Bag '+uid+' received.','ok');
+  pushGAS(Object.assign({action:'receiveUnit'}, unit));
+}
+
+function clearReceive() {
+  ['in-uid','in-vol'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('in-loc').value='';
+  document.getElementById('in-bt').value='';
+  document.getElementById('in-comp').value='';
+  document.getElementById('in-bagtype').value='';
+  document.getElementById('in-coll').value=toDay();
+  document.getElementById('in-exp').value='';
+  document.getElementById('shelf-note').style.display='none';
+}
+
+function renderRecv() {
+  var list = db.units.slice().reverse().slice(0,20);
+  var el   = document.getElementById('recv-table');
+  if (!list.length) { el.innerHTML='<div class="empty">No units received yet.</div>'; return; }
+  var h = '<table class="htable"><thead><tr><th>Blood Bag No.</th><th>Blood Type</th><th>Type of Donation</th><th>Bag Type</th><th>Collected</th><th>Expires</th><th>Status</th></tr></thead><tbody>';
+  list.forEach(function(u) {
+    var d  = daysLeft(u.expiryDate);
+    var bc = u.status!=='IN_STOCK'?'issued-b':d<=1?'critical':'ok';
+    var bs = u.status!=='IN_STOCK'?u.status:d<=1?'EXPIRES SOON':'IN STOCK';
+    h += '<tr><td><code>'+u.id+'</code></td><td><strong>'+u.bloodType+'</strong></td><td>'+u.component+'</td><td>'+(u.bagType||'-')+'</td><td>'+fmt(u.collectionDate)+'</td><td>'+fmt(u.expiryDate)+'</td><td><span class="badge '+bc+'">'+bs+'</span></td></tr>';
+  });
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+// ============================================================
+//  ISSUE (FIFO + override)
+// ============================================================
+function getFIFOUnit(bt, comp) {
+  var list = db.units.filter(function(u){
+    return u.bloodType===bt && u.component===comp && u.status==='IN_STOCK' && daysLeft(u.expiryDate)>=0;
+  });
+  list.sort(function(a,b){ return new Date(a.collectionDate)-new Date(b.collectionDate); });
+  return list[0] || null;
+}
+
+function getUnitById(uid) {
+  return db.units.find(function(u){ return u.id===uid && u.status==='IN_STOCK'; }) || null;
+}
+
+function previewFIFO() {
+  var bt       = document.getElementById('iss-bt').value;
+  var comp     = document.getElementById('iss-comp').value;
+  var override = document.getElementById('iss-uid-override').value.trim();
+  var box      = document.getElementById('fifo-preview');
+  var btn      = document.getElementById('btn-issue');
+
+  if (!bt || !comp) { box.innerHTML=''; btn.disabled=true; return; }
+
+  var unit = null;
+  var mode = 'FIFO';
+
+  if (override) {
+    unit = getUnitById(override);
+    mode = 'MANUAL';
+    if (!unit) {
+      box.innerHTML = '<div style="background:#fdecea;border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--red)">Unit ID <strong>'+override+'</strong> not found or not IN STOCK.</div>';
+      btn.disabled = true;
+      return;
+    }
+    if (unit.bloodType!==bt || unit.component!==comp) {
+      box.innerHTML = '<div style="background:#fdecea;border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--red)">Unit <strong>'+override+'</strong> is <strong>'+unit.bloodType+' '+unit.component+'</strong> but you selected <strong>'+bt+' '+comp+'</strong>. Please correct.</div>';
+      btn.disabled = true;
+      return;
+    }
+  } else {
+    unit = getFIFOUnit(bt, comp);
+  }
+
+  if (!unit) {
+    box.innerHTML = '<div class="fifo-box" style="background:#922b21"><h3>No Units Available</h3><div class="fifo-result">No '+bt+' '+comp+' in stock.</div></div>';
+    btn.disabled = true;
+    return;
+  }
+
+  var days = daysLeft(unit.expiryDate);
+  var dcol = days<=3 ? '#ffc0c0' : '#aff5c3';
+  box.innerHTML = '<div class="fifo-box"><h3>'+(mode==='MANUAL'?'MANUAL OVERRIDE - Selected Unit':'FIFO - Next Unit to Issue (Oldest First)')+'</h3><div class="fifo-result">'
+    +'<div>Unit ID: <strong>'+unit.id+'</strong></div>'
+    +'<div>'+unit.bloodType+' &nbsp;|&nbsp; '+unit.component+'</div>'
+    +'<div>Collected: '+fmt(unit.collectionDate)+'  |  Expires: '+fmt(unit.expiryDate)+'</div>'
+    +'<div>Days Remaining: <strong style="color:'+dcol+'">'+days+' day'+(days!==1?'s':'')+'</strong></div>'
+    +(unit.location ? '<div style="font-size:12px;opacity:.8">Location: '+unit.location+'</div>' : '')
+    +'</div></div>';
+  btn.disabled = false;
+  btn.dataset.uid = unit.id;
+}
+
+async function doIssue() {
+  var bt    = document.getElementById('iss-bt').value;
+  var comp  = document.getElementById('iss-comp').value;
+  var ward  = document.getElementById('iss-ward').value;
+  var pat   = document.getElementById('iss-patient').value;
+  var doc   = document.getElementById('iss-doctor').value;
+  var ind   = document.getElementById('iss-ind').value;
+  var uid   = document.getElementById('btn-issue').dataset.uid;
+  if (!uid) { toast('No unit selected.','err'); return; }
+  var unit = db.units.find(function(u){ return u.id===uid; });
+  if (!unit || unit.status!=='IN_STOCK') { toast('Unit not available.','err'); return; }
+
+  var now = new Date().toISOString();
+  unit.status   = 'ISSUED';
+  unit.issuedAt = now;
+  unit.issuedTo = {ward:ward, patient:pat, doctor:doc, indication:ind};
+  db.txns.push({date:toDay(), datetime:now, type:'ISSUED',
+    unitId:uid, bloodType:bt, component:comp,
+    notes:'Ward:'+ward+' | HN:'+pat+' | Dr:'+doc+' | Dx:'+ind});
+  saveDB();
+
+  // reset form
+  ['iss-bt','iss-comp','iss-ward','iss-patient','iss-doctor','iss-ind'].forEach(function(id){
+    document.getElementById(id).value='';
+  });
+  document.getElementById('iss-uid-override').value='';
+  document.getElementById('fifo-preview').innerHTML='';
+  document.getElementById('btn-issue').disabled=true;
+  delete document.getElementById('btn-issue').dataset.uid;
+  renderDash();
+  toast('Unit '+uid+' issued and removed from stock.','ok');
+  pushGAS({action:'issueUnit', unitId:uid, bloodType:bt, component:comp,
+    ward:ward, patient:pat, doctor:doc, indication:ind});
+}
+
+// ============================================================
+//  ISSUED TRACKER
+// ============================================================
+function renderIssued() {
+  var from  = document.getElementById('if-from').value;
+  var to    = document.getElementById('if-to').value;
+  var btF   = document.getElementById('if-bt').value;
+  var compF = document.getElementById('if-comp').value;
+  var wardF = (document.getElementById('if-ward').value||'').toLowerCase().trim();
+
+  var list = db.units.filter(function(u){ return u.status==='ISSUED'; });
+  if (from)  list = list.filter(function(u){ return (u.issuedAt||'').slice(0,10)>=from; });
+  if (to)    list = list.filter(function(u){ return (u.issuedAt||'').slice(0,10)<=to; });
+  if (btF)   list = list.filter(function(u){ return u.bloodType===btF; });
+  if (compF) list = list.filter(function(u){ return u.component===compF; });
+  if (wardF) list = list.filter(function(u){
+    return ((u.issuedTo&&u.issuedTo.ward)||'').toLowerCase().indexOf(wardF)!==-1;
+  });
+  list.sort(function(a,b){ return new Date(b.issuedAt||0)-new Date(a.issuedAt||0); });
+
+  // summary
+  var wards={};
+  list.forEach(function(u){
+    var w=(u.issuedTo&&u.issuedTo.ward)?u.issuedTo.ward:'Unknown';
+    wards[w]=(wards[w]||0)+1;
+  });
+  var top=Object.entries(wards).sort(function(a,b){return b[1]-a[1];}).slice(0,4);
+  var sr='<div style="background:var(--blue-pale);border:1px solid var(--blue);border-radius:8px;padding:8px 14px;font-size:12px;min-width:110px"><div style="font-weight:700;color:var(--blue)">Total Issued</div><div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--blue)">'+list.length+'</div></div>';
+  top.forEach(function(e){
+    sr+='<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:12px;min-width:100px"><div style="font-weight:700;color:var(--muted)">'+e[0]+'</div><div style="font-family:var(--mono);font-size:18px;font-weight:700">'+e[1]+'</div></div>';
+  });
+  document.getElementById('issued-summary').innerHTML=sr;
+
+  var el=document.getElementById('issued-list');
+  if (!list.length) { el.innerHTML='<div class="empty">No issued units found.</div>'; return; }
+  var html='';
+  list.forEach(function(u){
+    var it=u.issuedTo||{};
+    var idate=u.issuedAt?new Date(u.issuedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'-';
+    var itime=u.issuedAt?new Date(u.issuedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'';
+    var age=u.collectionDate&&u.issuedAt ? (Math.floor((new Date(u.issuedAt)-new Date(u.collectionDate))/86400000))+' days' : '-';
+    html+='<div class="irc">'
+      +'<div class="irc-head">'
+        +'<span class="irc-bt">'+u.bloodType+'</span>'
+        +'<span class="irc-id">'+u.id+'</span>'
+        +'<span class="irc-comp">'+u.component+'</span>'
+        +(it.ward?'<span class="irc-ward">'+it.ward+'</span>':'')
+        +'<span class="irc-time">'+idate+(itime?' &nbsp;'+itime:'')+'</span>'
+      +'</div>'
+      +'<div class="irc-body">'
+        +'<div class="irc-f"><div class="irc-fl">Type of Donation</div><div class="irc-fv">'+u.component+'</div></div>'
+        +'<div class="irc-f"><div class="irc-fl">Bag Type</div><div class="irc-fv">'+(u.bagType||'-')+'</div></div>'
+        +'<div class="irc-f"><div class="irc-fl">Patient ID / HN</div><div class="irc-fv mono">'+(it.patient||'-')+'</div></div>'
+        +'<div class="irc-f"><div class="irc-fl">Requested By</div><div class="irc-fv">'+(it.doctor||'-')+'</div></div>'
+        +'<div class="irc-f"><div class="irc-fl">Indication / Dx</div><div class="irc-fv">'+(it.indication||'-')+'</div></div>'
+        +'<div class="irc-f"><div class="irc-fl">Collection Date</div><div class="irc-fv mono">'+fmt(u.collectionDate)+'</div></div>'
+        +'<div class="irc-f"><div class="irc-fl">Expiry Date</div><div class="irc-fv mono">'+fmt(u.expiryDate)+'</div></div>'
+        +'<div class="irc-f"><div class="irc-fl">Age at Issue</div><div class="irc-fv mono">'+age+'</div></div>'
+        +(u.volumeML?'<div class="irc-f"><div class="irc-fl">Volume</div><div class="irc-fv mono">'+u.volumeML+' mL</div></div>':'')
+        +(u.location?'<div class="irc-f"><div class="irc-fl">Storage Loc.</div><div class="irc-fv">'+u.location+'</div></div>':'')
+      +'</div>'
+    +'</div>';
+  });
+  el.innerHTML=html;
+}
+
+// ============================================================
+//  EXCEL & PDF EXPORTS
+// ============================================================
+
+// ── Shared helpers ─────────────────────────────────────────
+function xlsxDownload(rows, sheetName, fileName) {
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  // Style header row bold (column widths)
+  var cols = rows[0].map(function(h){ return {wch: Math.max(h.length+4, 14)}; });
+  ws['!cols'] = cols;
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, fileName);
+  toast('Excel file downloaded.','ok');
+}
+
+function pdfWindow(title, tableHTML) {
+  var w = window.open('','_blank');
+  w.document.write(
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title>'
+    +'<style>'
+    +'body{font-family:Arial,sans-serif;font-size:11px;margin:20px;color:#1c1c1e}'
+    +'h2{font-size:15px;margin-bottom:4px;color:#922b21}'
+    +'p.sub{font-size:10px;color:#6b7280;margin-bottom:14px}'
+    +'table{width:100%;border-collapse:collapse;font-size:10px}'
+    +'th{background:#922b21;color:#fff;padding:6px 8px;text-align:left;font-size:10px}'
+    +'td{padding:5px 8px;border-bottom:1px solid #e5e7eb}'
+    +'tr:nth-child(even) td{background:#fafafa}'
+    +'@media print{button{display:none!important}}'
+    +'</style></head><body>'
+    +'<h2>Kampong Chhnang Provincial Hospital &mdash; Blood Bank</h2>'
+    +'<p class="sub">'+title+' &nbsp;|&nbsp; Generated: '+new Date().toLocaleString('en-GB')+'</p>'
+    +'<button onclick="window.print()" style="margin-bottom:12px;padding:7px 16px;background:#922b21;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px">&#x1F5A8; Print / Save as PDF</button>'
+    +'<button onclick="window.close()" style="margin-bottom:12px;margin-left:8px;padding:7px 16px;background:#e5e7eb;color:#1c1c1e;border:none;border-radius:5px;cursor:pointer;font-size:12px">Close</button>'
+    +tableHTML
+    +'</body></html>'
+  );
+  w.document.close();
+}
+
+// ── ALL UNITS ──────────────────────────────────────────────
+function allUnitsRows() {
+  var list = db.units.slice().sort(function(a,b){return new Date(a.receivedAt||0)-new Date(b.receivedAt||0);});
+  var hdr = ['Blood Bag No.','Blood Type','Type of Donation','Bag Type','Volume (mL)',
+    'Collection Date','Expiry Date','Source','Location','Status',
+    'Received At','Issued At','Ward','Patient HN','Doctor','Indication',
+    'Discarded At','Discard Reason','Discard Notes','Discarded By'];
+  var rows = [hdr];
+  list.forEach(function(u){
+    var it=u.issuedTo||{};
+    rows.push([u.id,u.bloodType,u.component,u.bagType||'',u.volumeML||'',
+      u.collectionDate||'',u.expiryDate||'',u.source||'',u.location||'',u.status,
+      u.receivedAt||'',u.issuedAt||'',it.ward||'',it.patient||'',it.doctor||'',it.indication||'',
+      u.discardedAt||'',u.discardReason||'',u.discardNotes||'',u.discardedBy||'']);
+  });
+  return rows;
+}
+function exportAllUnitsXLSX() {
+  var rows = allUnitsRows();
+  if (rows.length<2){toast('No data to export.','err');return;}
+  xlsxDownload(rows, 'All Units', 'KCPH_Blood_Bank_All_Units.xlsx');
+}
+function exportAllUnitsPDF() {
+  var rows = allUnitsRows();
+  if (rows.length<2){toast('No data to export.','err');return;}
+  var hdr = rows[0];
+  var body = rows.slice(1);
+  var t = '<table><thead><tr>'+hdr.map(function(h){return '<th>'+h+'</th>';}).join('')+'</tr></thead><tbody>';
+  body.forEach(function(r){
+    t += '<tr>'+r.map(function(c){return '<td>'+(c||'')+'</td>';}).join('')+'</tr>';
+  });
+  t += '</tbody></table>';
+  pdfWindow('All Blood Units Report', t);
+}
+
+// ── ISSUED UNITS ───────────────────────────────────────────
+function issuedRows() {
+  var from  = document.getElementById('if-from') ? document.getElementById('if-from').value : '';
+  var to    = document.getElementById('if-to')   ? document.getElementById('if-to').value   : '';
+  var btF   = document.getElementById('if-bt')   ? document.getElementById('if-bt').value   : '';
+  var compF = document.getElementById('if-comp') ? document.getElementById('if-comp').value : '';
+  var wardF = document.getElementById('if-ward') ? (document.getElementById('if-ward').value||'').toLowerCase().trim() : '';
+  var list  = db.units.filter(function(u){return u.status==='ISSUED';});
+  if (from)  list=list.filter(function(u){return (u.issuedAt||'').slice(0,10)>=from;});
+  if (to)    list=list.filter(function(u){return (u.issuedAt||'').slice(0,10)<=to;});
+  if (btF)   list=list.filter(function(u){return u.bloodType===btF;});
+  if (compF) list=list.filter(function(u){return u.component===compF;});
+  if (wardF) list=list.filter(function(u){return ((u.issuedTo&&u.issuedTo.ward)||'').toLowerCase().indexOf(wardF)!==-1;});
+  list.sort(function(a,b){return new Date(b.issuedAt||0)-new Date(a.issuedAt||0);});
+  var hdr = ['Issue Date','Issue Time','Blood Bag No.','Blood Type','Type of Donation','Bag Type',
+    'Volume (mL)','Collection Date','Expiry Date','Source','Location',
+    'Ward','Patient HN','Doctor','Indication','Received At','Issued At'];
+  var rows = [hdr];
+  list.forEach(function(u){
+    var it=u.issuedTo||{};
+    var dt=u.issuedAt?u.issuedAt.slice(0,10):'';
+    var tm=u.issuedAt?new Date(u.issuedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'';
+    rows.push([dt,tm,u.id,u.bloodType,u.component,u.bagType||'',u.volumeML||'',
+      u.collectionDate||'',u.expiryDate||'',u.source||'',u.location||'',
+      it.ward||'',it.patient||'',it.doctor||'',it.indication||'',
+      u.receivedAt||'',u.issuedAt||'']);
+  });
+  return rows;
+}
+function exportIssuedXLSX() {
+  var rows = issuedRows();
+  if (rows.length<2){toast('No issued units to export.','err');return;}
+  xlsxDownload(rows, 'Issued Units', 'KCPH_Issued_Blood_Units.xlsx');
+}
+function exportIssuedPDF() {
+  var rows = issuedRows();
+  if (rows.length<2){toast('No issued units to export.','err');return;}
+  var hdr = rows[0]; var body = rows.slice(1);
+  var t = '<table><thead><tr>'+hdr.map(function(h){return '<th>'+h+'</th>';}).join('')+'</tr></thead><tbody>';
+  body.forEach(function(r){t+='<tr>'+r.map(function(c){return '<td>'+(c||'')+'</td>';}).join('')+'</tr>';});
+  t += '</tbody></table>';
+  pdfWindow('Issued Blood Units Report', t);
+}
+
+// ── TRANSACTION LOG ────────────────────────────────────────
+function logRows() {
+  var from = document.getElementById('hl-from') ? document.getElementById('hl-from').value : '';
+  var to   = document.getElementById('hl-to')   ? document.getElementById('hl-to').value   : '';
+  var type = document.getElementById('hl-type') ? document.getElementById('hl-type').value : '';
+  var list = db.txns.slice().reverse();
+  if (from) list=list.filter(function(t){return t.date>=from;});
+  if (to)   list=list.filter(function(t){return t.date<=to;});
+  if (type) list=list.filter(function(t){return t.type===type;});
+  var hdr = ['Date','Datetime','Type','Blood Bag No.','Blood Type','Type of Donation','Notes'];
+  var rows = [hdr];
+  list.forEach(function(t){
+    rows.push([t.date,t.datetime||'',t.type,t.unitId,t.bloodType,t.component,t.notes||'']);
+  });
+  return rows;
+}
+function exportLogXLSX() {
+  var rows = logRows();
+  if (rows.length<2){toast('No transactions to export.','err');return;}
+  xlsxDownload(rows, 'Transaction Log', 'KCPH_Transaction_Log.xlsx');
+}
+function exportLogPDF() {
+  var rows = logRows();
+  if (rows.length<2){toast('No transactions to export.','err');return;}
+  var hdr = rows[0]; var body = rows.slice(1);
+  var t = '<table><thead><tr>'+hdr.map(function(h){return '<th>'+h+'</th>';}).join('')+'</tr></thead><tbody>';
+  body.forEach(function(r){t+='<tr>'+r.map(function(c){return '<td>'+(c||'')+'</td>';}).join('')+'</tr>';});
+  t += '</tbody></table>';
+  pdfWindow('Blood Bank Transaction Log', t);
+}
+
+// ============================================================
+//  DISCARD
+// ============================================================
+async function doDiscard() {
+  var uid    = document.getElementById('dis-uid').value.trim();
+  var reason = document.getElementById('dis-reason').value;
+  var notes  = document.getElementById('dis-notes').value;
+  var by     = document.getElementById('dis-by').value;
+  if (!uid) { toast('Enter a Unit ID.','err'); return; }
+  var unit = db.units.find(function(u){return u.id===uid;});
+  if (!unit) { toast('Unit ID not found.','err'); return; }
+  if (unit.status!=='IN_STOCK') { toast('Unit is '+unit.status+' - cannot discard.','err'); return; }
+
+  var now=new Date().toISOString();
+  unit.status='DISCARDED'; unit.discardedAt=now;
+  unit.discardReason=reason; unit.discardNotes=notes; unit.discardedBy=by;
+  db.txns.push({date:toDay(), datetime:now, type:'DISCARDED',
+    unitId:uid, bloodType:unit.bloodType, component:unit.component,
+    notes:reason+(notes?'. '+notes:'')+(by?'. By:'+by:'')});
+  saveDB();
+  ['dis-uid','dis-notes','dis-by'].forEach(function(id){document.getElementById(id).value='';});
+  renderUrgent(); renderDash();
+  toast('Unit '+uid+' discarded.','ok');
+  pushGAS({action:'discardUnit', unitId:uid, reason:reason, notes:notes, by:by});
+}
+
+function renderUrgent() {
+  var list=db.units.filter(function(u){return u.status==='IN_STOCK'&&daysLeft(u.expiryDate)<=3;});
+  list.sort(function(a,b){return new Date(a.expiryDate)-new Date(b.expiryDate);});
+  var el=document.getElementById('urgent-table');
+  if (!list.length) { el.innerHTML='<div class="empty">No units expiring within 3 days.</div>'; return; }
+  var h='<table class="ftable"><thead><tr><th>Blood Bag No.</th><th>Blood Type</th><th>Type of Donation</th><th>Bag Type</th><th>Expiry</th><th>Days</th><th>Action</th></tr></thead><tbody>';
+  list.forEach(function(u){
+    var d=daysLeft(u.expiryDate);
+    h+='<tr><td><code>'+u.id+'</code></td><td>'+u.bloodType+'</td><td>'+u.component+'</td><td>'+(u.bagType||'-')+'</td><td>'+fmt(u.expiryDate)+'</td><td><span class="badge '+(d<=0?'expired':'critical')+'">'+(d<=0?'EXPIRED':d+'d')+'</span></td><td><button class="btn btn-ghost btn-sm" onclick="prefillDiscard(\''+u.id+'\')">Select</button></td></tr>';
+  });
+  h+='</tbody></table>'; el.innerHTML=h;
+}
+function prefillDiscard(uid){ document.getElementById('dis-uid').value=uid; }
+
+// ============================================================
+//  FIFO QUEUE
+// ============================================================
+function renderFIFO() {
+  var btF   = document.getElementById('fq-bt').value;
+  var compF = document.getElementById('fq-comp').value;
+  var stF   = document.getElementById('fq-status').value;
+  var list  = db.units.filter(function(u){return stF==='all'||u.status==='IN_STOCK';});
+  if (btF)   list=list.filter(function(u){return u.bloodType===btF;});
+  if (compF) list=list.filter(function(u){return u.component===compF;});
+  list.sort(function(a,b){return new Date(a.collectionDate)-new Date(b.collectionDate);});
+  var el=document.getElementById('fifo-table');
+  if (!list.length) { el.innerHTML='<div class="empty">No units found.</div>'; return; }
+  var h='<table class="ftable"><thead><tr><th>#</th><th>Blood Bag No.</th><th>Blood Type</th><th>Type of Donation</th><th>Bag Type</th><th>Collected</th><th>Expiry</th><th>Days Left</th><th>Status</th><th>Location</th></tr></thead><tbody>';
+  list.forEach(function(u,i){
+    var d=daysLeft(u.expiryDate);
+    var bc=u.status!=='IN_STOCK'?'issued-b':d<=0?'expired':d<=2?'critical':d<=5?'warn':'ok';
+    var bs=u.status!=='IN_STOCK'?u.status:d<=0?'EXPIRED':d+'d left';
+    h+='<tr><td style="color:var(--muted)">'+(i+1)+'</td><td><code>'+u.id+'</code></td><td><strong>'+u.bloodType+'</strong></td><td>'+u.component+'</td><td>'+(u.bagType||'-')+'</td><td>'+fmt(u.collectionDate)+'</td><td>'+fmt(u.expiryDate)+'</td><td>'+(d<=0?'-':d)+'</td><td><span class="badge '+bc+'">'+bs+'</span></td><td>'+(u.location||'-')+'</td></tr>';
+  });
+  h+='</tbody></table>'; el.innerHTML=h;
+}
+
+// ============================================================
+//  TRANSACTION LOG
+// ============================================================
+function renderLog() {
+  var from = document.getElementById('hl-from').value;
+  var to   = document.getElementById('hl-to').value;
+  var type = document.getElementById('hl-type').value;
+  var list = db.txns.slice().reverse();
+  if (from) list=list.filter(function(t){return t.date>=from;});
+  if (to)   list=list.filter(function(t){return t.date<=to;});
+  if (type) list=list.filter(function(t){return t.type===type;});
+  var el=document.getElementById('log-table');
+  if (!list.length) { el.innerHTML='<div class="empty">No transactions found.</div>'; return; }
+  var cm={RECEIVED:'ok',ISSUED:'issued-b',DISCARDED:'critical'};
+  var h='<table class="htable"><thead><tr><th>Date</th><th>Type</th><th>Blood Bag No.</th><th>Blood Type</th><th>Type of Donation</th><th>Notes</th></tr></thead><tbody>';
+  list.forEach(function(t){
+    h+='<tr><td>'+fmt(t.date)+'</td><td><span class="badge '+(cm[t.type]||'')+'">'+t.type+'</span></td><td><code>'+t.unitId+'</code></td><td><strong>'+t.bloodType+'</strong></td><td>'+t.component+'</td><td style="color:var(--muted);font-size:12px">'+(t.notes||'-')+'</td></tr>';
+  });
+  h+='</tbody></table>'; el.innerHTML=h;
+}
+
+// ============================================================
+//  DASHBOARD
+// ============================================================
+function renderDash() {
+  var inStock    = db.units.filter(function(u){return u.status==='IN_STOCK';});
+  var expired    = inStock.filter(function(u){return daysLeft(u.expiryDate)<0;});
+  var exp3       = inStock.filter(function(u){var d=daysLeft(u.expiryDate);return d>=0&&d<=3;});
+  var exp7       = inStock.filter(function(u){var d=daysLeft(u.expiryDate);return d>=0&&d<=7;});
+  var ago30      = addDays(toDay(),-30);
+  var iss30      = db.txns.filter(function(t){return t.type==='ISSUED'&&t.date>=ago30;}).length;
+  var disc30     = db.txns.filter(function(t){return t.type==='DISCARDED'&&t.date>=ago30;}).length;
+
+  document.getElementById('stat-row').innerHTML=
+    '<div class="sc info"><div class="lbl">Total In Stock</div><div class="val">'+inStock.length+'</div><div class="sub">units available</div></div>'+
+    '<div class="sc '+(expired.length?'danger':'ok')+'"><div class="lbl">Expired In Stock</div><div class="val">'+expired.length+'</div><div class="sub">discard immediately</div></div>'+
+    '<div class="sc '+(exp3.length?'danger':'ok')+'"><div class="lbl">Expiring &le;3 Days</div><div class="val">'+exp3.length+'</div><div class="sub">critical - issue first</div></div>'+
+    '<div class="sc '+(exp7.length?'warn':'ok')+'"><div class="lbl">Expiring &le;7 Days</div><div class="val">'+exp7.length+'</div><div class="sub">watch closely</div></div>'+
+    '<div class="sc ok"><div class="lbl">Issued (30 days)</div><div class="val">'+iss30+'</div><div class="sub">units this month</div></div>'+
+    '<div class="sc '+(disc30?'warn':'ok')+'"><div class="lbl">Discarded (30 days)</div><div class="val">'+disc30+'</div><div class="sub">units wasted</div></div>';
+
+  var BTS=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+  var COMPS=Object.keys(SHELF);
+  var sg='';
+  BTS.forEach(function(bt){
+    var btu=inStock.filter(function(u){return u.bloodType===bt;});
+    if (!btu.length && !db.units.find(function(u){return u.bloodType===bt;})) return;
+    sg+='<div class="blood-card"><div class="bc-head"><span class="bt">'+bt+'</span><span class="btotal">'+btu.length+' units</span></div><div class="bc-body">';
+    COMPS.forEach(function(comp){
+      var cnt=btu.filter(function(u){return u.component===comp;}).length;
+      var pct=Math.min(100,(cnt/(MAX_STOCK[comp]||20))*100);
+      var bc=pct<15?'danger':pct<35?'warn':'';
+      sg+='<div class="comp-row"><span class="cn">'+shortComp(comp)+'</span><div class="bar-w"><div class="bar '+bc+'" style="width:'+pct+'%"></div></div><span class="cc">'+cnt+'</span></div>';
+    });
+    sg+='</div></div>';
+  });
+  document.getElementById('stock-grid').innerHTML=sg||'<div class="empty">No stock. Go to Receive to add units.</div>';
+
+  var alerts=inStock.filter(function(u){return daysLeft(u.expiryDate)<=7;})
+    .sort(function(a,b){return new Date(a.expiryDate)-new Date(b.expiryDate);}).slice(0,12);
+  if (!alerts.length) {
+    document.getElementById('alert-list').innerHTML='<div class="empty">No expiry alerts in next 7 days.</div>';
+  } else {
+    var al='';
+    alerts.forEach(function(u){
+      var d=daysLeft(u.expiryDate);
+      var cls=d<=2?'critical':'warning';
+      al+='<div class="alert-item '+cls+'"><div class="adot '+cls+'"></div><div class="atext"><strong>'+u.bloodType+' '+u.component+'</strong> &mdash; <code>'+u.id+'</code><div style="font-size:11px;color:var(--muted);margin-top:2px">Expires '+fmt(u.expiryDate)+(u.location?' | '+u.location:'')+'</div></div><div class="adays">'+(d<=0?'EXPIRED':d+'d')+'</div></div>';
+    });
+    document.getElementById('alert-list').innerHTML=al;
+  }
+}
+
+// ============================================================
+//  REPORTS — PERIOD-BASED
+// ============================================================
+var currentPeriod = 'daily';
+
+function setPeriod(period, el) {
+  currentPeriod = period;
+  document.querySelectorAll('.rp-btn').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active');
+  // Auto-set date range for the selected period
+  var now = new Date();
+  var from, to;
+  to = toDay();
+  if (period === 'daily') {
+    from = toDay();
+  } else if (period === 'weekly') {
+    var dow = now.getDay(); // 0=Sun
+    var monday = new Date(now); monday.setDate(now.getDate() - ((dow+6)%7));
+    from = monday.toISOString().slice(0,10);
+  } else if (period === 'monthly') {
+    from = toDay().slice(0,7) + '-01';
+  } else if (period === 'quarterly') {
+    var q = Math.floor(now.getMonth()/3);
+    from = now.getFullYear() + '-' + String(q*3+1).padStart(2,'0') + '-01';
+  } else if (period === 'yearly') {
+    from = now.getFullYear() + '-01-01';
+  }
+  document.getElementById('rpt-from').value = from;
+  document.getElementById('rpt-to').value   = to;
+  renderReport();
+}
+
+function getReportDateRange() {
+  var from = document.getElementById('rpt-from').value;
+  var to   = document.getElementById('rpt-to').value;
+  return { from: from, to: to };
+}
+
+function filterByRange(list, dateField) {
+  var r = getReportDateRange();
+  var out = list;
+  if (r.from) out = out.filter(function(x){ return (x[dateField]||'').slice(0,10) >= r.from; });
+  if (r.to)   out = out.filter(function(x){ return (x[dateField]||'').slice(0,10) <= r.to;   });
+  return out;
+}
+
+function periodLabel() {
+  var r = getReportDateRange();
+  var labels = {daily:'Daily Report',weekly:'Weekly Report',monthly:'Monthly Report',quarterly:'Quarterly Report',yearly:'Yearly Report'};
+  var lbl = labels[currentPeriod] || 'Report';
+  if (r.from && r.to) lbl += '  (' + fmt(r.from) + ' \u2014 ' + fmt(r.to) + ')';
+  return lbl;
+}
+
+function renderReport() {
+  var r     = getReportDateRange();
+  var allTx = db.txns;
+  var rTx   = filterByRange(allTx, 'date');
+  var allI  = rTx.filter(function(t){return t.type==='ISSUED';});
+  var allR  = rTx.filter(function(t){return t.type==='RECEIVED';});
+  var allD  = rTx.filter(function(t){return t.type==='DISCARDED';});
+  var inS   = db.units.filter(function(u){return u.status==='IN_STOCK';}).length;
+  var wapi  = allI.length+allD.length>0 ? ((allD.length/(allI.length+allD.length))*100).toFixed(1)+'%' : '-';
+  var wapiC = parseFloat(wapi)>5 ? 'var(--red)' : 'var(--green)';
+  var plbl  = periodLabel();
+
+  document.getElementById('rpt-kpi-period').textContent = '\u2014 ' + plbl;
+  document.getElementById('rpt-period-label').textContent = plbl;
+
+  // KPIs
+  document.getElementById('kpi-row').innerHTML =
+    '<div class="kpi-box"><div class="kval" style="color:var(--blue)">'+inS+'</div><div class="klbl">In Stock (Now)</div></div>'+
+    '<div class="kpi-box"><div class="kval" style="color:var(--green)">'+allR.length+'</div><div class="klbl">Received</div></div>'+
+    '<div class="kpi-box"><div class="kval" style="color:var(--red)">'+allI.length+'</div><div class="klbl">Issued</div></div>'+
+    '<div class="kpi-box"><div class="kval" style="color:var(--amber)">'+allD.length+'</div><div class="klbl">Discarded</div></div>'+
+    '<div class="kpi-box"><div class="kval" style="color:'+wapiC+'">'+wapi+'</div><div class="klbl">WAPI</div></div>';
+
+  // ── Period breakdown table ──────────────────────────────
+  var buckets = {};
+  var bucketKey;
+  if (currentPeriod === 'daily') {
+    bucketKey = function(d){ return d; };
+    document.getElementById('rpt-table-title').textContent = 'Daily Breakdown';
+  } else if (currentPeriod === 'weekly') {
+    bucketKey = function(d){
+      var dt = new Date(d); var dow = dt.getDay();
+      var mon = new Date(dt); mon.setDate(dt.getDate()-((dow+6)%7));
+      return 'Week of ' + mon.toISOString().slice(0,10);
+    };
+    document.getElementById('rpt-table-title').textContent = 'Weekly Breakdown';
+  } else if (currentPeriod === 'monthly') {
+    bucketKey = function(d){ return d.slice(0,7); };
+    document.getElementById('rpt-table-title').textContent = 'Monthly Breakdown';
+  } else if (currentPeriod === 'quarterly') {
+    bucketKey = function(d){
+      var y=d.slice(0,4), m=parseInt(d.slice(5,7));
+      return y+' Q'+Math.ceil(m/3);
+    };
+    document.getElementById('rpt-table-title').textContent = 'Quarterly Breakdown';
+  } else {
+    bucketKey = function(d){ return d.slice(0,4); };
+    document.getElementById('rpt-table-title').textContent = 'Yearly Breakdown';
+  }
+
+  allTx.forEach(function(t){
+    var k = bucketKey(t.date);
+    if (!buckets[k]) buckets[k] = {received:0,issued:0,discarded:0};
+    buckets[k][t.type.toLowerCase()]++;
+  });
+  var bkeys = Object.keys(buckets).sort();
+  var el = document.getElementById('rpt-period-table');
+  if (!bkeys.length) { el.innerHTML='<div class="empty">No data for this period.</div>'; }
+  else {
+    var h='<table class="htable"><thead><tr><th>Period</th><th>Received</th><th>Issued</th><th>Discarded</th><th>WAPI</th></tr></thead><tbody>';
+    bkeys.forEach(function(k){
+      var d=buckets[k];
+      var w=d.issued+d.discarded>0?((d.discarded/(d.issued+d.discarded))*100).toFixed(1)+'%':'0%';
+      var hi = r.from && r.to && k >= r.from.slice(0, k.length) && k <= r.to.slice(0, k.length);
+      var rowStyle = hi ? ' style="background:var(--green-pale)"' : '';
+      h+='<tr'+rowStyle+'><td><strong>'+k+'</strong></td>'
+        +'<td style="color:var(--green)">'+d.received+'</td>'
+        +'<td style="color:var(--red)">'+d.issued+'</td>'
+        +'<td style="color:var(--amber)">'+d.discarded+'</td>'
+        +'<td style="font-family:var(--mono)">'+w+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    el.innerHTML=h;
+  }
+
+  // ── Bar charts ─────────────────────────────────────────
+  function barChart(counts, color) {
+    var entries = Object.entries(counts).sort(function(a,b){return b[1]-a[1];});
+    if (!entries.length) return '<div class="empty">No data.</div>';
+    var max = entries[0][1];
+    return entries.map(function(e){
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px">'
+        +'<span style="font-family:var(--mono);font-weight:700;min-width:32px">'+e[0]+'</span>'
+        +'<div style="flex:1;background:var(--border);border-radius:4px;height:8px">'
+        +'<div style="background:'+color+';height:8px;border-radius:4px;width:'+((e[1]/max)*100)+'%"></div></div>'
+        +'<span style="font-family:var(--mono);min-width:22px;text-align:right">'+e[1]+'</span>'
+        +'</div>';
+    }).join('');
+  }
+
+  var recvBT={}, issBT={}, issD={}, discD={};
+  allR.forEach(function(t){recvBT[t.bloodType]=(recvBT[t.bloodType]||0)+1;});
+  allI.forEach(function(t){issBT[t.bloodType]=(issBT[t.bloodType]||0)+1;});
+  allI.forEach(function(t){issD[t.component]=(issD[t.component]||0)+1;});
+  allD.forEach(function(t){discD[t.component]=(discD[t.component]||0)+1;});
+
+  document.getElementById('rpt-recv-bt').innerHTML    = barChart(recvBT,'var(--green)');
+  document.getElementById('rpt-bt').innerHTML         = barChart(issBT,'var(--red)');
+  document.getElementById('rpt-iss-donation').innerHTML = barChart(issD,'var(--blue)');
+  document.getElementById('rpt-comp').innerHTML       = barChart(discD,'var(--amber)');
+}
+
+// ── Report Excel / PDF export ──────────────────────────────
+function exportReportXLSX() {
+  var r    = getReportDateRange();
+  var rTx  = filterByRange(db.txns, 'date');
+  var allI = rTx.filter(function(t){return t.type==='ISSUED';});
+  var allR = rTx.filter(function(t){return t.type==='RECEIVED';});
+  var allD = rTx.filter(function(t){return t.type==='DISCARDED';});
+  var wapi = allI.length+allD.length>0?((allD.length/(allI.length+allD.length))*100).toFixed(1)+'%':'-';
+  var wb   = XLSX.utils.book_new();
+  var label = periodLabel();
+
+  // Sheet 1 — Summary KPIs
+  var kpiRows = [
+    ['Report Period', label],
+    ['Generated', new Date().toLocaleString('en-GB')],
+    [],
+    ['Metric','Value'],
+    ['In Stock (current)', db.units.filter(function(u){return u.status==='IN_STOCK';}).length],
+    ['Received', allR.length],
+    ['Issued',   allI.length],
+    ['Discarded',allD.length],
+    ['WAPI (Wastage Rate)', wapi]
+  ];
+  var ws1 = XLSX.utils.aoa_to_sheet(kpiRows);
+  ws1['!cols'] = [{wch:28},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Summary KPIs');
+
+  // Sheet 2 — Received in period
+  var recvHdr = ['Date','Blood Bag No.','Blood Type','Type of Donation','Bag Type','Volume (mL)','Collection Date','Expiry Date','Location','Source'];
+  var recvData = [recvHdr];
+  filterByRange(db.units.filter(function(u){return u.status!==''; }), 'receivedAt')
+    .filter(function(u){ var d=(u.receivedAt||'').slice(0,10); return (!r.from||d>=r.from)&&(!r.to||d<=r.to); })
+    .forEach(function(u){
+      recvData.push([u.receivedAt?u.receivedAt.slice(0,10):'',u.id,u.bloodType,u.component,u.bagType||'',u.volumeML||'',u.collectionDate||'',u.expiryDate||'',u.location||'',u.source||'']);
+    });
+  var ws2 = XLSX.utils.aoa_to_sheet(recvData);
+  ws2['!cols'] = recvHdr.map(function(h){return {wch:Math.max(h.length+4,14)};});
+  XLSX.utils.book_append_sheet(wb, ws2, 'Received');
+
+  // Sheet 3 — Issued in period
+  var issHdr = ['Issue Date','Blood Bag No.','Blood Type','Type of Donation','Bag Type','Ward','Patient HN','Doctor','Indication','Collection Date','Expiry Date'];
+  var issData = [issHdr];
+  db.units.filter(function(u){
+    if(u.status!=='ISSUED') return false;
+    var d=(u.issuedAt||'').slice(0,10);
+    return (!r.from||d>=r.from)&&(!r.to||d<=r.to);
+  }).forEach(function(u){
+    var it=u.issuedTo||{};
+    issData.push([u.issuedAt?u.issuedAt.slice(0,10):'',u.id,u.bloodType,u.component,u.bagType||'',it.ward||'',it.patient||'',it.doctor||'',it.indication||'',u.collectionDate||'',u.expiryDate||'']);
+  });
+  var ws3 = XLSX.utils.aoa_to_sheet(issData);
+  ws3['!cols'] = issHdr.map(function(h){return {wch:Math.max(h.length+4,14)};});
+  XLSX.utils.book_append_sheet(wb, ws3, 'Issued');
+
+  // Sheet 4 — Discarded in period
+  var disHdr = ['Discard Date','Blood Bag No.','Blood Type','Type of Donation','Bag Type','Reason','Notes','Discarded By'];
+  var disData = [disHdr];
+  db.units.filter(function(u){
+    if(u.status!=='DISCARDED') return false;
+    var d=(u.discardedAt||'').slice(0,10);
+    return (!r.from||d>=r.from)&&(!r.to||d<=r.to);
+  }).forEach(function(u){
+    disData.push([u.discardedAt?u.discardedAt.slice(0,10):'',u.id,u.bloodType,u.component,u.bagType||'',u.discardReason||'',u.discardNotes||'',u.discardedBy||'']);
+  });
+  var ws4 = XLSX.utils.aoa_to_sheet(disData);
+  ws4['!cols'] = disHdr.map(function(h){return {wch:Math.max(h.length+4,14)};});
+  XLSX.utils.book_append_sheet(wb, ws4, 'Discarded');
+
+  var fname = 'KCPH_BloodBank_' + currentPeriod.charAt(0).toUpperCase()+currentPeriod.slice(1) + '_Report_' + toDay() + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  toast('Report Excel downloaded.','ok');
+}
+
+function exportReportPDF() {
+  var r    = getReportDateRange();
+  var rTx  = filterByRange(db.txns, 'date');
+  var allI = rTx.filter(function(t){return t.type==='ISSUED';});
+  var allR = rTx.filter(function(t){return t.type==='RECEIVED';});
+  var allD = rTx.filter(function(t){return t.type==='DISCARDED';});
+  var wapi = allI.length+allD.length>0?((allD.length/(allI.length+allD.length))*100).toFixed(1)+'%':'-';
+  var inS  = db.units.filter(function(u){return u.status==='IN_STOCK';}).length;
+  var label = periodLabel();
+
+  var html = '<h3 style="margin-bottom:12px;color:#1c1c1e">Summary KPIs</h3>'
+    +'<table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>'
+    +'<tr><td>In Stock (current)</td><td>'+inS+'</td></tr>'
+    +'<tr><td>Received</td><td style="color:#1e8449">'+allR.length+'</td></tr>'
+    +'<tr><td>Issued</td><td style="color:#c0392b">'+allI.length+'</td></tr>'
+    +'<tr><td>Discarded</td><td style="color:#d68910">'+allD.length+'</td></tr>'
+    +'<tr><td>WAPI (Wastage Rate)</td><td>'+wapi+'</td></tr>'
+    +'</tbody></table>';
+
+  // Issued table
+  var issUnits = db.units.filter(function(u){
+    if(u.status!=='ISSUED') return false;
+    var d=(u.issuedAt||'').slice(0,10);
+    return (!r.from||d>=r.from)&&(!r.to||d<=r.to);
+  });
+  if (issUnits.length) {
+    html += '<h3 style="margin:18px 0 10px;color:#1c1c1e">Issued Blood Units ('+issUnits.length+')</h3>'
+      +'<table><thead><tr><th>Date</th><th>Bag No.</th><th>Blood Type</th><th>Donation Type</th><th>Ward</th><th>Patient HN</th><th>Doctor</th><th>Indication</th></tr></thead><tbody>';
+    issUnits.forEach(function(u){
+      var it=u.issuedTo||{};
+      html+='<tr><td>'+(u.issuedAt?u.issuedAt.slice(0,10):'')+'</td><td>'+u.id+'</td><td>'+u.bloodType+'</td><td>'+u.component+'</td><td>'+(it.ward||'-')+'</td><td>'+(it.patient||'-')+'</td><td>'+(it.doctor||'-')+'</td><td>'+(it.indication||'-')+'</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Discarded table
+  var disUnits = db.units.filter(function(u){
+    if(u.status!=='DISCARDED') return false;
+    var d=(u.discardedAt||'').slice(0,10);
+    return (!r.from||d>=r.from)&&(!r.to||d<=r.to);
+  });
+  if (disUnits.length) {
+    html += '<h3 style="margin:18px 0 10px;color:#1c1c1e">Discarded Units ('+disUnits.length+')</h3>'
+      +'<table><thead><tr><th>Date</th><th>Bag No.</th><th>Blood Type</th><th>Donation Type</th><th>Reason</th><th>By</th></tr></thead><tbody>';
+    disUnits.forEach(function(u){
+      html+='<tr><td>'+(u.discardedAt?u.discardedAt.slice(0,10):'')+'</td><td>'+u.id+'</td><td>'+u.bloodType+'</td><td>'+u.component+'</td><td>'+(u.discardReason||'-')+'</td><td>'+(u.discardedBy||'-')+'</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  pdfWindow(label, html);
+}
+
+function initReportPeriod() {
+  if (!document.getElementById('rpt-from').value) {
+    setPeriod('daily', document.querySelector('.rp-btn'));
+  }
+}
+
+renderDash();
+</script>
+</body>
+</html>
